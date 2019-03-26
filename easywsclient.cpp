@@ -45,7 +45,7 @@ void init(lock_t *lock) {
    // 1: lock is held
    lock->flag = 0;
 }
-int TestAndSet(int *ptr, int value) {
+int TestAndSet(volatile int *ptr, int value) {
 	int old = *ptr;
 	*ptr = value;
 	return old;
@@ -198,17 +198,19 @@ class _RealWebSocket : public easywsclient::WebSocket
             ssize_t ret;
             rxbuf.resize(N + 1500);
             ret = recv(sockfd, (char*)&rxbuf[0] + N, 1500, MSG_NOSIGNAL);
-			//printf("ret = %d  , N=%d, rxbuf.size :%d, errno = %d \n",ret ,N, rxbuf.size(), socketerrno);
+		//	printf("ret = %d  , N=%d, rxbuf.size :%d, errno = %d \n",ret ,N, rxbuf.size(), socketerrno);
+		//	if (ret > 2)
+		//		printf("%s",(char *)&rxbuf[0]);
             if (false) { }
             else if (ret < 0 && (socketerrno == SOCKET_EWOULDBLOCK || socketerrno == SOCKET_EAGAIN_EINPROGRESS)) {
                 rxbuf.resize(N);
                 break;
             }
             else if (ret <= 0) {
-                rxbuf.resize(N);
-                closesocket(sockfd);
-                readyState = CLOSED;
-                fputs(ret < 0 ? "rx Connection error!\n" : "Connection closed!\n", stderr);
+           //     rxbuf.resize(N);
+           //     closesocket(sockfd);
+           //     readyState = CLOSED;
+                fputs(ret < 0 ? "rx Connection error!\n" : "rx Connection closed!\n", stderr);
                 break;
             }
             else {
@@ -221,7 +223,7 @@ class _RealWebSocket : public easywsclient::WebSocket
 		}
         while (txbuf.size()) {
             int ret = ::send(sockfd, (char*)&txbuf[0], txbuf.size(), MSG_NOSIGNAL);
-//			printf("ret = %d , buf.size :%d \n",ret , txbuf.size());
+		//	printf("ret = %d , buf.size :%d \n",ret , txbuf.size());
             if (false) { } // ??
             else if (ret < 0 && (socketerrno == SOCKET_EWOULDBLOCK || socketerrno == SOCKET_EAGAIN_EINPROGRESS)) {
                 break;
@@ -229,7 +231,7 @@ class _RealWebSocket : public easywsclient::WebSocket
             else if (ret <= 0) {
                 closesocket(sockfd);
                 readyState = CLOSED;
-                fputs(ret < 0 ? "tx Connection error!\n" : "Connection closed!\n", stderr);
+                fputs(ret < 0 ? "tx Connection error!\n" : "tx Connection closed!\n", stderr);
                 break;
             }
             else {
@@ -334,7 +336,7 @@ class _RealWebSocket : public easywsclient::WebSocket
                 sendData(wsheader_type::PONG, data.size(), data.begin(), data.end());
             }
             else if (ws.opcode == wsheader_type::PONG) {
-				printf("reciv pong!\n");
+//				printf("reciv pong!\n");
 				heartbeat = 0;
 			}
             else if (ws.opcode == wsheader_type::CLOSE) { close(); }
@@ -416,7 +418,7 @@ class _RealWebSocket : public easywsclient::WebSocket
                 header[7] = masking_key[3];
             }
         }
-        else { // TODO: run coverage testing here
+        else { 
             header[1] = 127 | (useMask ? 0x80 : 0);
             header[2] = (message_size >> 56) & 0xff;
             header[3] = (message_size >> 48) & 0xff;
@@ -437,7 +439,6 @@ class _RealWebSocket : public easywsclient::WebSocket
 		lock(&mutex);
         txbuf.insert(txbuf.end(), header.begin(), header.end());
         txbuf.insert(txbuf.end(), message_begin, message_end);
-		unlock(&mutex);
 		//printf("11 buf.size :%d \n", txbuf.size() );
         if (useMask) {
             size_t message_offset = txbuf.size() - message_size;
@@ -445,6 +446,7 @@ class _RealWebSocket : public easywsclient::WebSocket
                 txbuf[message_offset + i] ^= masking_key[i&0x3];
             }
         }
+		unlock(&mutex);
     }
 
     void close() {
