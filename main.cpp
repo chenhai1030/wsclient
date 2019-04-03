@@ -59,12 +59,14 @@ static void upload_file(int file_type, int file_num, const char * file_path)
 
 static void start_speedtest_activity()
 {
+	system("input keyevent BACK");
 	system(SPEED_TEST_ACTIVITY_CMD);	
 	upload_file(FILE_TYPE_IMG, SCREEN_CAP_NUM, SCREEN_SPEED_TEST_FILE);
 }
 
 static void start_linktest_activity()
 {
+	system("input keyevent BACK");
 	system(LINK_TEST_ACTIVITY_CMD);	
 	upload_file(FILE_TYPE_IMG, SCREEN_CAP_NUM, SCREEN_LINK_TEST_FILE);
 //	get_speedtest_screen();

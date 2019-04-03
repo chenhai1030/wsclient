@@ -63,7 +63,6 @@ static int upload(const char * url, const char * file, const char * file_field, 
 	return 0;
 }
 
-
 static void *fun_upload_process(void * arg)
 {
 	char cmd_buf[128] = {0};			
@@ -79,6 +78,7 @@ static void *fun_upload_process(void * arg)
 	}
 
 	while(file_num --){
+		static int i = 1;
 		usleep(5000*1000);	
 		if (strlen(cmd_buf)){
 			system(cmd_buf);
@@ -86,7 +86,10 @@ static void *fun_upload_process(void * arg)
 		if (FILE_TYPE_IMG == file_type){
 			if (p_params->m_p_file_path){
 				if (access(p_params->m_p_file_path, F_OK)!= -1){
-					upload(FILE_UPLOAD_URL, p_params->m_p_file_path, "img", false);
+					char new_name[128] = {0};
+					sprintf((char*)new_name, "%s_%d",  p_params->m_p_file_path, i++);
+					rename(p_params->m_p_file_path, new_name);
+					upload(FILE_UPLOAD_URL, new_name, "img", false);
 				}
 			}else{
 				if (access(SCREEN_FILE, F_OK)!= -1){
