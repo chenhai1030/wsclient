@@ -83,18 +83,23 @@ LOCAL_MODULE:= wsclient
 
 LOCAL_SRC_FILES:= \
 	easywsclient.cpp \
+	upload.cpp \
     main.cpp 
 
 LOCAL_C_INCLUDES :=	bionic \
-		external/stlport/stlport
+		external/stlport/stlport \
+		external/curl/include \
+		bionic/libstdc++/include
 
 LOCAL_CFLAGS += -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES -DMSOS_TYPE_LINUX -std=c++11 -D_STLP_USE_NEWALLOC -D_STLP_NO_MOVE_SEMANTIC -D_GLIBCXX_HAS_GTHREADS
 
-LOCAL_CXXFLAGS := -DHAVE_PTHREADS
+#LOCAL_CXXFLAGS := -DHAVE_PTHREADS
 
 
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
-    liblog 
+    liblog \
+	libcurl \
+	libstlport
 
 include $(BUILD_EXECUTABLE)

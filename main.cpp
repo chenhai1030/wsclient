@@ -11,29 +11,19 @@
 #include <signal.h>
 #include <fstream>
 
-#include<sys/stat.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 
+#include "upload.h"
+#include "common.h"
 
-#define WS_STREAM_URL "ws://172.17.7.11:8000/chat/stream"
-#define WS_URL "ws://172.17.7.11:8000/chat/connect"
-//#define WS_URL "ws://59.172.252.67:8100/chat/connect"
-
-#define TMP_FILE "/tmp/wsdata"
-#define FIFO "/tmp/stdout_fifo"
-#define SCREEN_FILE "/tmp/speed.png"
-
-#define SPEED_TEST_CMD "SpeedTest"
-
-#define BUF_SIZE_MAX (4*1024)
-#define BUF_SIZE_LINE 512 
 
 
 static int fun_system(const char * cmd);
+static void get_speedtest_screen();
 
 using easywsclient::WebSocket;
 static volatile WebSocket::pointer ws = NULL;
-static volatile WebSocket::pointer ws_stream = NULL;
 
 
 static void handle_sig(int sig)
@@ -47,27 +37,68 @@ static void handle_sig(int sig)
 	}
 }
 
+static void upload_file(int file_type, int file_num, const char * file_path)
+{
+	upload_param_t *p_upload_param = NULL; 
+
+	p_upload_param = (upload_param_t *)malloc(sizeof(upload_param_t));
+	if (p_upload_param != NULL){
+		p_upload_param->m_file_type = file_type;
+		p_upload_param->m_file_num = file_num;
+		if (file_path != NULL){
+			p_upload_param->m_p_file_path = (char *)malloc(strlen(file_path+1));
+			memset(p_upload_param->m_p_file_path, 0 , strlen(p_upload_param->m_p_file_path+1));
+			if (p_upload_param->m_p_file_path){
+				strncpy(p_upload_param->m_p_file_path, file_path, strlen(file_path));	
+			}
+		}
+	}
+
+	upload_file_task(p_upload_param);
+}
+
+static void start_speedtest_activity()
+{
+	system(SPEED_TEST_ACTIVITY_CMD);	
+	upload_file(FILE_TYPE_IMG, SCREEN_CAP_NUM, NULL);
+}
+
+static void start_linktest_activity()
+{
+	system(LINK_TEST_ACTIVITY_CMD);	
+	upload_file(FILE_TYPE_IMG, SCREEN_CAP_NUM, NULL);
+//	get_speedtest_screen();
+}
+
+static void start_upload_file(const char * file_path)
+{
+	upload_file(FILE_TYPE_FILE, 1, file_path);
+}
+
 static void get_speedtest_screen()
 {
 	char cmd_buf[128];			
+	using namespace std;
     std::vector<uint8_t> streambuf;
 	pid_t son;
 	FILE *stream_fp = NULL;
 	int status;
 	unsigned long filesize = -1;
-		
+	WebSocket::pointer ws_stream = NULL;
+
 	sprintf((char*)cmd_buf, "screencap -p %s",  SCREEN_FILE);
 	son = fun_system(cmd_buf);
 	if (son > 0){
 		waitpid(son,&status,WUNTRACED);
 
-		using namespace std;
 		ifstream f(SCREEN_FILE, ios::binary);
 		unsigned char c;
 		while(f >> c) streambuf.push_back(c);
 		ws_stream = WebSocket::from_url(WS_STREAM_URL);
-		if (ws_stream != NULL)
+		printf("chenhai test---> \n");
+		if (ws_stream != NULL){
 			ws_stream->sendBinary(streambuf);
+		}
 	}
 }
 
@@ -75,32 +106,7 @@ static pid_t fun_system(const char * cmd)
 {
 	pid_t pid;
 	int status;
-//	char command[512] = {0};
-//	char **args;
-//	int i,len;
-//	int tokens=0;
-//
-//	i=0;
-//	strncpy(command, cmd, sizeof(cmd));
-//	while((command[i]!=0)&&((command[i]==' ')||(command[i]=='\t'))) i++;
-//	while(command[i] != 0)
-//	{
-//		while((command[i]!=0)&&(command[i]!=' ')&&(command[i] != '\t')) i++;
-//		tokens++;
-//		while((command[i]!=0)&&((command[i]==' ')||(command[i] == '\t'))) i++;
-//	}
-//
-//	args=(char **)malloc((tokens+1)*sizeof(char *));
-//	len = i;
-//	i = 0;
-//	tokens = 0;
-//	do{
-//		while ((command[i]!=0)&&((command[i]==' ')||(command[i]=='\t'))) i++;
-//		args[tokens++]=command+i;
-//		while ((command[i]!=0)&&((command[i]!=' ')&&(command[i]!='\t'))) i++;
-//		command[i++]=0;
-//	}while(i<len);
-//
+
 	if((pid = fork())<0){
 		pid = -1;
 	}else if (pid == 0){
@@ -141,7 +147,7 @@ static void *fun_send_msg_process(void *)
 				len = 0;
 				memset(buf, 0, sizeof(buf));
 			}
-			usleep(10000);
+			usleep(1000*10);
 		}
 		usleep(1000*500);	
 	}
@@ -160,7 +166,7 @@ static int handle_msg_init()
 		return -1;
 	}
 
-	ret = pthread_create(&task_id, &thread_attr, &fun_send_msg_process, NULL);
+	ret = pthread_create(&task_id, &thread_attr, fun_send_msg_process, NULL);
 	if (ret != 0){
 		pthread_attr_destroy(&thread_attr);
 		return -1;	
@@ -208,12 +214,20 @@ int main(int argc,char *argv[])
 				}
 				
 				if (strncmp(cmd, SPEED_TEST_CMD, sizeof(cmd)) == 0){
-//					get_speedtest_screen();
-				}else{
-					child_pid = fun_system(cmd);
-					printf("child_pid %d \r\n", child_pid);
-					memset(cmd, 0, sizeof(cmd));
+					start_speedtest_activity();	
+				}else if (strncmp(cmd, LINK_TEST_CMD, sizeof(cmd)) == 0){
+					start_linktest_activity();	
+				}else {
+					char *p = strtok(cmd, " ");
+					if (p != NULL && strncmp (p, UPLOAD_FILE_CMD, sizeof(p)) == 0){
+						char * path = strtok(NULL, " ");
+						start_upload_file(path);		
+					}else{
+						child_pid = fun_system(cmd);
+						printf("child_pid %d \r\n", child_pid);
+					}
 				}
+				memset(cmd, 0, sizeof(cmd));
 			}
 		}
 		else{
