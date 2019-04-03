@@ -46,8 +46,8 @@ static void upload_file(int file_type, int file_num, const char * file_path)
 		p_upload_param->m_file_type = file_type;
 		p_upload_param->m_file_num = file_num;
 		if (file_path != NULL){
-			p_upload_param->m_p_file_path = (char *)malloc(strlen(file_path+1));
-			memset(p_upload_param->m_p_file_path, 0 , strlen(p_upload_param->m_p_file_path+1));
+			p_upload_param->m_p_file_path = (char *)malloc(strlen(file_path)+1);
+			memset(p_upload_param->m_p_file_path, 0 , strlen(p_upload_param->m_p_file_path)+1);
 			if (p_upload_param->m_p_file_path){
 				strncpy(p_upload_param->m_p_file_path, file_path, strlen(file_path));	
 			}
@@ -60,13 +60,13 @@ static void upload_file(int file_type, int file_num, const char * file_path)
 static void start_speedtest_activity()
 {
 	system(SPEED_TEST_ACTIVITY_CMD);	
-	upload_file(FILE_TYPE_IMG, SCREEN_CAP_NUM, NULL);
+	upload_file(FILE_TYPE_IMG, SCREEN_CAP_NUM, SCREEN_SPEED_TEST_FILE);
 }
 
 static void start_linktest_activity()
 {
 	system(LINK_TEST_ACTIVITY_CMD);	
-	upload_file(FILE_TYPE_IMG, SCREEN_CAP_NUM, NULL);
+	upload_file(FILE_TYPE_IMG, SCREEN_CAP_NUM, SCREEN_LINK_TEST_FILE);
 //	get_speedtest_screen();
 }
 

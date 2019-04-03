@@ -72,7 +72,10 @@ static void *fun_upload_process(void * arg)
 	int file_num = (int)p_params->m_file_num;
 
 	if (FILE_TYPE_IMG == file_type){
-		sprintf((char*)cmd_buf, "screencap -p %s",  SCREEN_FILE);
+		if (p_params->m_p_file_path != NULL)
+			sprintf((char*)cmd_buf, "screencap -p %s",  p_params->m_p_file_path);
+		else
+			sprintf((char*)cmd_buf, "screencap -p %s",  SCREEN_FILE);
 	}
 
 	while(file_num --){
@@ -81,8 +84,14 @@ static void *fun_upload_process(void * arg)
 			system(cmd_buf);
 		}
 		if (FILE_TYPE_IMG == file_type){
-			if (access(SCREEN_FILE, F_OK)!= -1){
-				upload(FILE_UPLOAD_URL, SCREEN_FILE, "img", false);
+			if (p_params->m_p_file_path){
+				if (access(p_params->m_p_file_path, F_OK)!= -1){
+					upload(FILE_UPLOAD_URL, p_params->m_p_file_path, "img", false);
+				}
+			}else{
+				if (access(SCREEN_FILE, F_OK)!= -1){
+					upload(FILE_UPLOAD_URL, SCREEN_FILE, "img", false);
+				}
 			}
 		}else{
 			upload(FILE_UPLOAD_URL, p_params->m_p_file_path, "upload", false);

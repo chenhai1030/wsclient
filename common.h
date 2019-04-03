@@ -9,7 +9,10 @@
 
 #define TMP_FILE "/tmp/wsdata"
 #define FIFO "/tmp/stdout_fifo"
+
 #define SCREEN_FILE "/tmp/screen.png"
+#define SCREEN_SPEED_TEST_FILE "/tmp/screen_speed.png"
+#define SCREEN_LINK_TEST_FILE "/tmp/screen_link.png"
 
 #define SPEED_TEST_CMD "SpeedTest"
 #define LINK_TEST_CMD "LinkTest"
