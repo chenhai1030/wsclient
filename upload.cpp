@@ -7,9 +7,22 @@
  *      <input type="submit" value="send" name="submit">
  *  </form>
  */
+#include "easywsclient.hpp"
 #include "upload.h"
 #include "common.h"
 
+static char time_str[64] = {0};
+
+using easywsclient::WebSocket;
+extern WebSocket::pointer ws;
+
+static char* getCurrentTimeStr()
+{
+	time_t t = time(NULL);
+	memset(time_str, 0, sizeof(time_str));
+	strftime(time_str, sizeof(time_str) - 1, "%Y%m%d%H%M", localtime(&t));     //年-月-日 时-分
+	return time_str;
+}
 
 static int upload(const char * url, const char * file, const char * file_field, bool is_noexpectheader)
 {
@@ -66,6 +79,7 @@ static int upload(const char * url, const char * file, const char * file_field, 
 static void *fun_upload_process(void * arg)
 {
 	char cmd_buf[128] = {0};			
+	int i = 0;
 	upload_param_t *p_params = (upload_param_t *)arg;
 	int file_type = (int)p_params->m_file_type;
 	int file_num = (int)p_params->m_file_num;
@@ -78,7 +92,6 @@ static void *fun_upload_process(void * arg)
 	}
 
 	while(file_num --){
-		static int i = 1;
 		usleep(5000*1000);	
 		if (strlen(cmd_buf)){
 			system(cmd_buf);
@@ -87,7 +100,7 @@ static void *fun_upload_process(void * arg)
 			if (p_params->m_p_file_path){
 				if (access(p_params->m_p_file_path, F_OK)!= -1){
 					char new_name[128] = {0};
-					sprintf((char*)new_name, "%s_%d",  p_params->m_p_file_path, i++);
+					sprintf((char*)new_name, "%s_%s_%d.png",  p_params->m_p_file_path, getCurrentTimeStr(), i++);
 					rename(p_params->m_p_file_path, new_name);
 					upload(FILE_UPLOAD_URL, new_name, "img", false);
 				}
@@ -107,7 +120,11 @@ static void *fun_upload_process(void * arg)
 	if (p_params){
 		free(p_params);
 	}
-	
+
+	if (ws != NULL && ws->getReadyState() != WebSocket::CLOSED){
+		ws->send("Upload done!");
+	}
+
 	return NULL;	
 }
 

@@ -23,8 +23,7 @@ static int fun_system(const char * cmd);
 static void get_speedtest_screen();
 
 using easywsclient::WebSocket;
-static volatile WebSocket::pointer ws = NULL;
-
+volatile WebSocket::pointer ws = NULL;
 
 static void handle_sig(int sig)
 {
@@ -114,8 +113,12 @@ static pid_t fun_system(const char * cmd)
 	}else if (pid == 0){
 		int fd = open(FIFO, O_WRONLY);
 		dup2(fd, 1);
-
-		execl("/system/bin/sh", "sh", "-c", cmd, (char *)0);
+		if (strlen(cmd) > 7 &&  strncmp (cmd, "busybox", 7) == 0){
+	//		printf("test -> %d\n", sizeof(cmd));
+			system(cmd);
+		}else{
+			execl("/system/bin/sh", "sh", "-c", cmd, (char *)0);
+		}
 		//execvp(args[0], args);
 		exit(127); 
 	}
@@ -221,7 +224,7 @@ int main(int argc,char *argv[])
 					start_linktest_activity();	
 				}else {
 					char *p = strtok(cmd, " ");
-					if (p != NULL && strncmp (p, UPLOAD_FILE_CMD, sizeof(p)) == 0){
+					if (p != NULL && strncmp (p, GET_FILE_CMD, strlen(p)) == 0){
 						char * path = strtok(NULL, " ");
 						start_upload_file(path);		
 					}else{
