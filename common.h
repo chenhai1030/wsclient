@@ -21,7 +21,7 @@
 
 #define SPEED_TEST_CMD "SpeedTest"
 #define LINK_TEST_CMD "LinkTest"
-#define GET_FILE_CMD "get"
+#define GET_FILE_CMD "upload"
 
 
 #define BUF_SIZE_MAX (8*1024)

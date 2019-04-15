@@ -46,9 +46,9 @@ static void upload_file(int file_type, int file_num, const char * file_path)
 		p_upload_param->m_file_num = file_num;
 		if (file_path != NULL){
 			p_upload_param->m_p_file_path = (char *)malloc(strlen(file_path)+1);
-			memset(p_upload_param->m_p_file_path, 0 , strlen(p_upload_param->m_p_file_path)+1);
 			if (p_upload_param->m_p_file_path){
-				strncpy(p_upload_param->m_p_file_path, file_path, strlen(file_path));	
+				memset(p_upload_param->m_p_file_path, 0 , strlen(p_upload_param->m_p_file_path)+1);
+				strncpy(p_upload_param->m_p_file_path, file_path, strlen(file_path)+1);	
 			}
 		}
 	}
@@ -223,10 +223,11 @@ int main(int argc,char *argv[])
 				}else if (strncmp(cmd, LINK_TEST_CMD, sizeof(cmd)) == 0){
 					start_linktest_activity();	
 				}else {
-					char *p = strtok(cmd, " ");
-					if (p != NULL && strncmp (p, GET_FILE_CMD, strlen(p)) == 0){
+					if (strncmp (cmd, GET_FILE_CMD, 6) == 0){
+						char * p = strtok(cmd, " ");
 						char * path = strtok(NULL, " ");
-						start_upload_file(path);		
+						printf("chenhai test--> %s \n", path);
+						start_upload_file((const char *)path);		
 					}else{
 						child_pid = fun_system(cmd);
 						printf("child_pid %d \r\n", child_pid);
