@@ -103,6 +103,7 @@ static void *fun_upload_process(void * arg)
 					sprintf((char*)new_name, "%s_%s_%d.png",  p_params->m_p_file_path, getCurrentTimeStr(), i++);
 					rename(p_params->m_p_file_path, new_name);
 					upload(FILE_UPLOAD_URL, new_name, "img", false);
+					unlink(new_name);
 				}
 			}else{
 				if (access(SCREEN_FILE, F_OK)!= -1){

@@ -113,12 +113,7 @@ static pid_t fun_system(const char * cmd)
 	}else if (pid == 0){
 		int fd = open(FIFO, O_WRONLY);
 		dup2(fd, 1);
-		if (strlen(cmd) > 7 &&  strncmp (cmd, "busybox", 7) == 0){
-	//		printf("test -> %d\n", sizeof(cmd));
-			system(cmd);
-		}else{
-			execl("/system/bin/sh", "sh", "-c", cmd, (char *)0);
-		}
+		execl("/system/bin/sh", "sh", "-c", cmd, (char *)0);
 		//execvp(args[0], args);
 		exit(127); 
 	}
@@ -226,10 +221,13 @@ int main(int argc,char *argv[])
 					if (strncmp (cmd, GET_FILE_CMD, 6) == 0){
 						char * p = strtok(cmd, " ");
 						char * path = strtok(NULL, " ");
-						printf("chenhai test--> %s \n", path);
 						start_upload_file((const char *)path);		
 					}else{
-						child_pid = fun_system(cmd);
+						if (strlen(cmd) > 7 &&  strncmp (cmd, "busybox", 7) == 0){
+							system(cmd);
+						}else{
+							child_pid = fun_system(cmd);
+						}
 						printf("child_pid %d \r\n", child_pid);
 					}
 				}
