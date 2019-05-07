@@ -81,6 +81,7 @@ socket_t hostname_connect(const std::string& hostname, int port) {
         if (connect(sockfd, p->ai_addr, p->ai_addrlen) != SOCKET_ERROR) {
             break;
         }
+		printf("test---> \n");
         closesocket(sockfd);
         sockfd = INVALID_SOCKET;
     }
@@ -207,9 +208,9 @@ class _RealWebSocket : public easywsclient::WebSocket
                 break;
             }
             else if (ret <= 0) {
-           //     rxbuf.resize(N);
-           //     closesocket(sockfd);
-           //     readyState = CLOSED;
+                rxbuf.resize(N);
+                closesocket(sockfd);
+                readyState = CLOSED;
                 fputs(ret < 0 ? "rx Connection error!\n" : "rx Connection closed!\n", stderr);
                 break;
             }
@@ -223,7 +224,7 @@ class _RealWebSocket : public easywsclient::WebSocket
 		}
         while (txbuf.size()) {
             int ret = ::send(sockfd, (char*)&txbuf[0], txbuf.size(), MSG_NOSIGNAL);
-		//	printf("ret = %d , buf.size :%d \n",ret , txbuf.size());
+//			printf("ret = %d , buf.size :%d \n",ret , txbuf.size());
             if (false) { } // ??
             else if (ret < 0 && (socketerrno == SOCKET_EWOULDBLOCK || socketerrno == SOCKET_EAGAIN_EINPROGRESS)) {
                 break;
@@ -241,6 +242,7 @@ class _RealWebSocket : public easywsclient::WebSocket
             }
         }
         if (!txbuf.size() && readyState == CLOSING) {
+			printf("tx error closed! state = %d\n", readyState);
             closesocket(sockfd);
             readyState = CLOSED;
         }
@@ -336,11 +338,17 @@ class _RealWebSocket : public easywsclient::WebSocket
                 sendData(wsheader_type::PONG, data.size(), data.begin(), data.end());
             }
             else if (ws.opcode == wsheader_type::PONG) {
-//				printf("reciv pong!\n");
+				//printf("reciv pong!\n");
 				heartbeat = 0;
 			}
-            else if (ws.opcode == wsheader_type::CLOSE) { close(); }
-            else { fprintf(stderr, "ERROR: Got unexpected WebSocket message.\n"); close(); }
+            else if (ws.opcode == wsheader_type::CLOSE) { 
+				printf("reciv close! \n");
+				close(); 
+			}
+            else { fprintf(stderr, "ERROR: Got unexpected WebSocket message.\n"); 
+				printf("Got unexpected WebSocket close! \n");
+				close(); 
+			}
 
             rxbuf.erase(rxbuf.begin(), rxbuf.begin() + ws.header_size+(size_t)ws.N);
         }

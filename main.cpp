@@ -19,11 +19,14 @@
 
 
 
+char g_mac_str[32] = {0};
 static int fun_system(const char * cmd);
 static void get_speedtest_screen();
 
 using easywsclient::WebSocket;
 volatile WebSocket::pointer ws = NULL;
+
+static int g_s_heart_freq = 20;
 
 static void handle_sig(int sig)
 {
@@ -68,7 +71,6 @@ static void start_linktest_activity()
 	system("input keyevent BACK");
 	system(LINK_TEST_ACTIVITY_CMD);	
 	upload_file(FILE_TYPE_IMG, SCREEN_CAP_NUM, SCREEN_LINK_TEST_FILE);
-//	get_speedtest_screen();
 }
 
 static void start_upload_file(const char * file_path)
@@ -137,17 +139,22 @@ static void *fun_send_msg_process(void *)
 	while(true){
 		fp = fopen(FIFO, "rb");
 		if (fp!= NULL){
-			while( fgets( line, sizeof(line), fp) != NULL && (len < BUF_SIZE_MAX - BUF_SIZE_LINE) ){
+		loop:
+			while(fgets( line, sizeof(line), fp) != NULL && (len < BUF_SIZE_MAX - BUF_SIZE_LINE)){
 				strncpy(&buf[0] + len, line, strlen(line));
 				len += strlen(line);
 			}
 			if (ws != NULL && ws->getReadyState() != WebSocket::CLOSED){
-				//printf("> %s", line);
 				ws->send(buf);	
 				len = 0;
 				memset(buf, 0, sizeof(buf));
+				usleep(1000*10);	
 			}
-			usleep(1000*10);
+			if (fgets( line, sizeof(line), fp) != NULL){
+				strncpy(&buf[0] + len, line, strlen(line));
+				len += strlen(line);
+				goto loop;
+			}
 		}
 		usleep(1000*500);	
 	}
@@ -174,6 +181,24 @@ static int handle_msg_init()
 	return 0;
 }
 
+static void get_macaddr(const char * str)
+{
+	char *p_cus = g_mac_str;
+	char *p_colon = p_cus;
+	strncpy(g_mac_str, str+8, 17);
+	
+	while(*p_cus != '\0'){
+		if (*p_cus != ':'){
+			*p_colon = *p_cus;
+			*p_colon++;
+			*p_cus++;
+		}else{
+			p_cus++;
+		}
+	}
+	*p_colon = *p_cus;
+}
+
 int main(int argc,char *argv[])
 {
 	char cmd[255];
@@ -191,6 +216,7 @@ int main(int argc,char *argv[])
 
 	handle_msg_init();
 	if (argc > 1){
+		get_macaddr(argv[1]);
 		ws->send(argv[1]);
 	}else{
 		ws->send("hello");
@@ -207,6 +233,9 @@ int main(int argc,char *argv[])
 		//        if (message == "world") { wsp->close(); }
 			});
 			if (strlen(cmd) > 0){
+				if (strncmp(cmd, "logcat", 6) == 0){
+					g_s_heart_freq = 20;	
+				}
 				if (child_pid > 0){
 					kill(child_pid, SIGKILL);
 					printf("kill :%d \r\n", child_pid);
@@ -245,14 +274,14 @@ int main(int argc,char *argv[])
 
 			delete ws;
 			ws = NULL;
-			printf("Heart beat error ---> new ws create! \n");
+			printf("Heart beat error %d---> new ws create! \n", is_restart);
 			ws = WebSocket::from_url(WS_URL);
 			ws->send(argv[1]);
 			count = 0;
 			is_restart = false;
 		}
 		
-		if (count++ % 20 == 1){
+		if (count++ % g_s_heart_freq == 1){
 			ws->sendPing();
 			ws->incHeartbeat();
 		}
