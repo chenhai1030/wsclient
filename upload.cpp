@@ -11,6 +11,7 @@
 #include "upload.h"
 #include "common.h"
 
+extern char g_mac_str[32];
 static char time_str[64] = {0};
 
 using easywsclient::WebSocket;
@@ -79,6 +80,7 @@ static int upload(const char * url, const char * file, const char * file_field, 
 static void *fun_upload_process(void * arg)
 {
 	char cmd_buf[128] = {0};			
+	char upload_url[128] = {0};
 	int i = 0;
 	upload_param_t *p_params = (upload_param_t *)arg;
 	int file_type = (int)p_params->m_file_type;
@@ -91,6 +93,8 @@ static void *fun_upload_process(void * arg)
 			sprintf((char*)cmd_buf, "screencap -p %s",  SCREEN_FILE);
 	}
 
+	sprintf((char*)upload_url, "%s/%s", FILE_UPLOAD_URL, g_mac_str);
+	printf("url: %s, mac :%s \n", upload_url, g_mac_str);
 	while(file_num --){
 		usleep(5000*1000);	
 		if (strlen(cmd_buf)){
@@ -102,16 +106,16 @@ static void *fun_upload_process(void * arg)
 					char new_name[128] = {0};
 					sprintf((char*)new_name, "%s_%s_%d.png",  p_params->m_p_file_path, getCurrentTimeStr(), i++);
 					rename(p_params->m_p_file_path, new_name);
-					upload(FILE_UPLOAD_URL, new_name, "img", false);
+					upload(upload_url, new_name, "img", false);
 					unlink(new_name);
 				}
 			}else{
 				if (access(SCREEN_FILE, F_OK)!= -1){
-					upload(FILE_UPLOAD_URL, SCREEN_FILE, "img", false);
+					upload(upload_url, SCREEN_FILE, "img", false);
 				}
 			}
 		}else{
-			upload(FILE_UPLOAD_URL, p_params->m_p_file_path, "upload", false);
+			upload(upload_url, p_params->m_p_file_path, "upload", false);
 		}
 	}
 	if (p_params->m_p_file_path){
