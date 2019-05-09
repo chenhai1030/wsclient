@@ -7,7 +7,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
-#include<netinet/in.h>
+#include <netinet/in.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -81,7 +81,6 @@ socket_t hostname_connect(const std::string& hostname, int port) {
         if (connect(sockfd, p->ai_addr, p->ai_addrlen) != SOCKET_ERROR) {
             break;
         }
-		printf("test---> \n");
         closesocket(sockfd);
         sockfd = INVALID_SOCKET;
     }
@@ -242,9 +241,9 @@ class _RealWebSocket : public easywsclient::WebSocket
             }
         }
         if (!txbuf.size() && readyState == CLOSING) {
-			printf("tx error closed! state = %d\n", readyState);
-            closesocket(sockfd);
-            readyState = CLOSED;
+			//printf("tx error closed! state = %d\n", readyState);
+            //closesocket(sockfd);
+            //readyState = CLOSED;
         }
     }
 
@@ -458,6 +457,8 @@ class _RealWebSocket : public easywsclient::WebSocket
     }
 
     void close() {
+		printf("try to close \n");
+		return;
         if(readyState == CLOSING || readyState == CLOSED) { return; }
         readyState = CLOSING;
         uint8_t closeFrame[6] = {0x88, 0x80, 0x00, 0x00, 0x00, 0x00}; // last 4 bytes are a masking key
