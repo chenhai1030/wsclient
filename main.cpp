@@ -211,7 +211,7 @@ int main(int argc,char *argv[])
 
     //std::unique_ptr<WebSocket> ws(WebSocket::from_url(WS_URL));
 	//ws = WebSocket::from_url_no_mask(WS_URL);
-	ws = WebSocket::from_url(WS_URL);
+	ws = WebSocket::from_url(WS_URL_CONNECT);
     assert(ws);
 
 	handle_msg_init();
@@ -275,7 +275,7 @@ int main(int argc,char *argv[])
 			delete ws;
 			ws = NULL;
 			printf("Heart beat error %d---> new ws create! \n", is_restart);
-			ws = WebSocket::from_url(WS_URL);
+			ws = WebSocket::from_url(WS_URL_CONNECT);
 			ws->send(argv[1]);
 			count = 0;
 			is_restart = false;
