@@ -247,7 +247,7 @@ int main(int argc,char *argv[])
 				}else if (strncmp(cmd, LINK_TEST_CMD, sizeof(cmd)) == 0){
 					start_linktest_activity();	
 				}else {
-					if (strncmp (cmd, GET_FILE_CMD, 6) == 0){
+					if (strncmp (cmd, GET_FILE_CMD, strlen(GET_FILE_CMD)) == 0){
 						char * p = strtok(cmd, " ");
 						char * path = strtok(NULL, " ");
 						start_upload_file((const char *)path);		
@@ -275,6 +275,7 @@ int main(int argc,char *argv[])
 			delete ws;
 			ws = NULL;
 			printf("Heart beat error %d---> new ws create! \n", is_restart);
+			printf("url: %s \n", WS_URL_CONNECT);
 			ws = WebSocket::from_url(WS_URL_CONNECT);
 			ws->send(argv[1]);
 			count = 0;
