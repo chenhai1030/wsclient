@@ -52,6 +52,7 @@ int TestAndSet(volatile int *ptr, int value) {
 }
 void lock(lock_t *lock) {
 	while (TestAndSet(&lock->flag, 1) == 1) {
+		printf("try lock \n");
 		;
 	}
 }
@@ -187,9 +188,9 @@ class _RealWebSocket : public easywsclient::WebSocket
             FD_ZERO(&rfds);
             FD_ZERO(&wfds);
             FD_SET(sockfd, &rfds);
-			lock(&mutex);
+			//lock(&mutex);
             if (txbuf.size()) { FD_SET(sockfd, &wfds); }
-			unlock(&mutex);
+			//unlock(&mutex);
             select(sockfd + 1, &rfds, &wfds, 0, timeout > 0 ? &tv : 0);
         }
         while (true) {
@@ -223,7 +224,7 @@ class _RealWebSocket : public easywsclient::WebSocket
 		}
         while (txbuf.size()) {
             int ret = ::send(sockfd, (char*)&txbuf[0], txbuf.size(), MSG_NOSIGNAL);
-//			printf("ret = %d , buf.size :%d \n",ret , txbuf.size());
+			//printf("ret = %d , buf.size :%d \n",ret , txbuf.size());
             if (false) { } // ??
             else if (ret < 0 && (socketerrno == SOCKET_EWOULDBLOCK || socketerrno == SOCKET_EAGAIN_EINPROGRESS)) {
                 break;

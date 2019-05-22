@@ -13,6 +13,8 @@
 
 #include <sys/stat.h>
 #include <fcntl.h>
+#include<net/if.h>  
+#include<net/if_arp.h> 
 
 #include "upload.h"
 #include "common.h"
@@ -140,9 +142,12 @@ static void *fun_send_msg_process(void *)
 		fp = fopen(FIFO, "rb");
 		if (fp!= NULL){
 		loop:
-			while(fgets( line, sizeof(line), fp) != NULL && (len < BUF_SIZE_MAX - BUF_SIZE_LINE)){
+			while(fgets( line, sizeof(line), fp) != NULL){
 				strncpy(&buf[0] + len, line, strlen(line));
 				len += strlen(line);
+				if (len > BUF_SIZE_MAX - BUF_SIZE_LINE){
+					break;
+				}
 			}
 			if (ws != NULL && ws->getReadyState() != WebSocket::CLOSED){
 				ws->send(buf);	
@@ -185,29 +190,48 @@ static void get_macaddr(const char * str)
 {
 	char *p_cus = g_mac_str;
 	char *p_colon = p_cus;
-	strncpy(g_mac_str, str+8, 17);
-	
-	while(*p_cus != '\0'){
-		if (*p_cus != ':'){
-			*p_colon = *p_cus;
-			*p_colon++;
-			*p_cus++;
-		}else{
-			p_cus++;
+	if (str){
+		strncpy(g_mac_str, str+8, 17);
+		
+		while(*p_cus != '\0'){
+			if (*p_cus != ':'){
+				*p_colon = *p_cus;
+				*p_colon++;
+				*p_cus++;
+			}else{
+				p_cus++;
+			}
 		}
+		*p_colon = *p_cus;
+	}else{
+		struct ifreq ifreq;
+		int fd;
+		if((fd = socket(AF_INET ,SOCK_STREAM ,0)) >= 0){
+			strcpy(ifreq.ifr_name ,"eth0");
+			if(ioctl(fd, SIOCGIFHWADDR, &ifreq) == 0){
+				sprintf(g_mac_str, "%02X:%02X:%02X:%02X:%02X:%02X",
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[0] ,
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[1] ,
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[2] ,
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[3] ,
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[4] ,
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[5]);
+			}
+			close(fd);
+		}		
 	}
-	*p_colon = *p_cus;
 }
 
 int main(int argc,char *argv[])
 {
 	char cmd[255];
+	char mac_arg[64];
 	int fd[2];
 	pid_t child_pid = 0;
 	static unsigned int count = 0;
-	bool is_restart = false;
 
 	memset(cmd, 0, sizeof(cmd));
+	memset(mac_arg, 0, sizeof(mac_arg));
 
     //std::unique_ptr<WebSocket> ws(WebSocket::from_url(WS_URL));
 	//ws = WebSocket::from_url_no_mask(WS_URL);
@@ -217,10 +241,14 @@ int main(int argc,char *argv[])
 	handle_msg_init();
 	if (argc > 1){
 		get_macaddr(argv[1]);
-		ws->send(argv[1]);
+		strncpy(mac_arg, argv[1], strlen(argv[1]));
+		ws->send(mac_arg);
 	}else{
-		ws->send("hello");
+		get_macaddr(NULL);
+		sprintf(mac_arg, "Macaddr:%s", g_mac_str);
+		ws->send(mac_arg);
 	}
+	printf("test -> mac: %s \n", mac_arg);
 
     while (ws->getReadyState() != WebSocket::CLOSED) {
         WebSocket::pointer wsp = &*ws; // <-- because a unique_ptr cannot be copied into a lambda
@@ -233,13 +261,16 @@ int main(int argc,char *argv[])
 		//        if (message == "world") { wsp->close(); }
 			});
 			if (strlen(cmd) > 0){
-				if (strncmp(cmd, "logcat", 6) == 0){
-					g_s_heart_freq = 20;	
-				}
 				if (child_pid > 0){
 					kill(child_pid, SIGKILL);
 					printf("kill :%d \r\n", child_pid);
 					sleep(1);
+				}
+				if (strncmp(cmd, "logcat", 6) == 0){
+					g_s_heart_freq = 20;	
+				}
+				if (strncmp(cmd, EXIT_CMD, strlen(EXIT_CMD)) == 0){
+					system("/system/bin/am stopservice -n com.funtv.remotedignostic/com.funtv.remotedignostic.service.DiagnosticService");
 				}
 				
 				if (strncmp(cmd, SPEED_TEST_CMD, sizeof(cmd)) == 0){
@@ -263,29 +294,26 @@ int main(int argc,char *argv[])
 				memset(cmd, 0, sizeof(cmd));
 			}
 		}
-		else{
-			is_restart = true;
+
+		if (count++ % g_s_heart_freq == 1){
+			ws->sendPing();
+			ws->incHeartbeat();
 		}
 
-		if (ws->getHeartbeat() >= 2 || is_restart == true){
+		if (ws->getHeartbeat() > 2){
 			ws->close();
 			ws->poll();
 			ws->poll();
 
 			delete ws;
 			ws = NULL;
-			printf("Heart beat error %d---> new ws create! \n", is_restart);
-			printf("url: %s \n", WS_URL_CONNECT);
+			printf("Heart beat error ---> new ws create! \n");
+			//printf("url: %s \n", WS_URL_CONNECT);
 			ws = WebSocket::from_url(WS_URL_CONNECT);
-			ws->send(argv[1]);
+			ws->send(mac_arg);
 			count = 0;
-			is_restart = false;
 		}
 		
-		if (count++ % g_s_heart_freq == 1){
-			ws->sendPing();
-			ws->incHeartbeat();
-		}
     }
     // N.B. - unique_ptr will free the WebSocket instance upon return:
     return 0;
