@@ -250,7 +250,8 @@ int main(int argc,char *argv[])
 	}
 	printf("test -> mac: %s \n", mac_arg);
 
-    while (ws->getReadyState() != WebSocket::CLOSED) {
+    //while (ws->getReadyState() != WebSocket::CLOSED) {
+    while (true) {
         WebSocket::pointer wsp = &*ws; // <-- because a unique_ptr cannot be copied into a lambda
         ws->poll(300);
 		if (ws->getReadyState() != WebSocket::CLOSED){
@@ -313,7 +314,6 @@ int main(int argc,char *argv[])
 			ws->send(mac_arg);
 			count = 0;
 		}
-		
     }
     // N.B. - unique_ptr will free the WebSocket instance upon return:
     return 0;
