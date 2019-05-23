@@ -23,6 +23,7 @@
 
 
 char g_mac_str[32] = {0};
+static char g_mac_arg[64] = {0};
 static int fun_system(const char * cmd);
 static void get_speedtest_screen();
 
@@ -213,7 +214,14 @@ static void get_macaddr(const char * str)
 		if((fd = socket(AF_INET ,SOCK_STREAM ,0)) >= 0){
 			strcpy(ifreq.ifr_name ,"eth0");
 			if(ioctl(fd, SIOCGIFHWADDR, &ifreq) == 0){
-				sprintf(g_mac_str, "%02X:%02X:%02X:%02X:%02X:%02X",
+				sprintf(g_mac_arg, "Macaddr:%02X:%02X:%02X:%02X:%02X:%02X",
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[0] ,
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[1] ,
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[2] ,
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[3] ,
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[4] ,
+						(unsigned char)ifreq.ifr_hwaddr.sa_data[5]);
+				sprintf(g_mac_str, "%02X%02X%02X%02X%02X%02X",
 						(unsigned char)ifreq.ifr_hwaddr.sa_data[0] ,
 						(unsigned char)ifreq.ifr_hwaddr.sa_data[1] ,
 						(unsigned char)ifreq.ifr_hwaddr.sa_data[2] ,
@@ -229,13 +237,12 @@ static void get_macaddr(const char * str)
 int main(int argc,char *argv[])
 {
 	char cmd[255];
-	char mac_arg[64];
 	int fd[2];
 	pid_t child_pid = 0;
 	static unsigned int count = 0;
 
 	memset(cmd, 0, sizeof(cmd));
-	memset(mac_arg, 0, sizeof(mac_arg));
+	memset(g_mac_arg, 0, sizeof(g_mac_arg));
 
 	pthread_mutex_init(&g_s_mutex, NULL);
 	//std::unique_ptr<WebSocket> ws(WebSocket::from_url(WS_URL));
@@ -246,14 +253,13 @@ int main(int argc,char *argv[])
 	handle_msg_init();
 	if (argc > 1){
 		get_macaddr(argv[1]);
-		strncpy(mac_arg, argv[1], strlen(argv[1]));
-		ws->send(mac_arg);
+		strncpy(g_mac_arg, argv[1], strlen(argv[1]));
+		ws->send(g_mac_arg);
 	}else{
 		get_macaddr(NULL);
-		sprintf(mac_arg, "Macaddr:%s", g_mac_str);
-		ws->send(mac_arg);
+		ws->send(g_mac_arg);
 	}
-	printf("test -> mac: %s \n", mac_arg);
+	printf("test -> mac: %s \n", g_mac_arg);
 
     //while (ws->getReadyState() != WebSocket::CLOSED) {
     while (true) {
@@ -261,6 +267,7 @@ int main(int argc,char *argv[])
 		pthread_mutex_lock(&g_s_mutex);
         ws->poll();
 		pthread_mutex_unlock(&g_s_mutex);
+		usleep(1000*10);
 		if (ws->getReadyState() != WebSocket::CLOSED){
 			ws->dispatch([&cmd](const std::string & message) {
 				printf(">>> %s\n", message.c_str());
@@ -278,7 +285,9 @@ int main(int argc,char *argv[])
 					g_s_heart_freq = 20;	
 				}
 				if (strncmp(cmd, EXIT_CMD, strlen(EXIT_CMD)) == 0){
+					system("setprop service.fun.remotediagnostic 0");
 					system("/system/bin/am stopservice -n com.funtv.remotedignostic/com.funtv.remotedignostic.service.DiagnosticService");
+					exit(127);
 				}
 				
 				if (strncmp(cmd, SPEED_TEST_CMD, sizeof(cmd)) == 0){
@@ -318,7 +327,7 @@ int main(int argc,char *argv[])
 //			printf("Heart beat error ---> new ws create! \n");
 //			//printf("url: %s \n", WS_URL_CONNECT);
 //			ws = WebSocket::from_url(WS_URL_CONNECT);
-//			ws->send(mac_arg);
+//			ws->send(g_mac_arg);
 //			count = 0;
 //		}
     }
