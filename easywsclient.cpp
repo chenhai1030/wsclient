@@ -223,14 +223,8 @@ class _RealWebSocket : public easywsclient::WebSocket
                 rxbuf.resize(N + ret);
             }
         }
-		if (readyState == CLOSED)
-		{
-			return;
-		}
         while (txbuf.size()) {
-			lock(&mutex);
             int ret = ::send(sockfd, (char*)&txbuf[0], txbuf.size(), MSG_NOSIGNAL);
-			unlock(&mutex);
 			//printf("ret = %d , buf.size :%d \n",ret , txbuf.size());
             if (false) { } // ??
             else if (ret < 0 && (socketerrno == SOCKET_EWOULDBLOCK || socketerrno == SOCKET_EAGAIN_EINPROGRESS)) {

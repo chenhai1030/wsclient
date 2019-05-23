@@ -13,8 +13,9 @@
 
 #include <sys/stat.h>
 #include <fcntl.h>
-#include<net/if.h>  
-#include<net/if_arp.h> 
+#include <net/if.h>  
+#include <net/if_arp.h>
+#include <pthread.h>
 
 #include "upload.h"
 #include "common.h"
@@ -28,6 +29,7 @@ static void get_speedtest_screen();
 using easywsclient::WebSocket;
 volatile WebSocket::pointer ws = NULL;
 
+static pthread_mutex_t g_s_mutex;
 static int g_s_heart_freq = 20;
 
 static void handle_sig(int sig)
@@ -150,7 +152,9 @@ static void *fun_send_msg_process(void *)
 				}
 			}
 			if (ws != NULL && ws->getReadyState() != WebSocket::CLOSED){
+				pthread_mutex_lock(&g_s_mutex);
 				ws->send(buf);	
+				pthread_mutex_unlock(&g_s_mutex);
 				len = 0;
 				memset(buf, 0, sizeof(buf));
 				usleep(1000*10);	
@@ -233,7 +237,8 @@ int main(int argc,char *argv[])
 	memset(cmd, 0, sizeof(cmd));
 	memset(mac_arg, 0, sizeof(mac_arg));
 
-    //std::unique_ptr<WebSocket> ws(WebSocket::from_url(WS_URL));
+	pthread_mutex_init(&g_s_mutex, NULL);
+	//std::unique_ptr<WebSocket> ws(WebSocket::from_url(WS_URL));
 	//ws = WebSocket::from_url_no_mask(WS_URL);
 	ws = WebSocket::from_url(WS_URL_CONNECT);
     assert(ws);
@@ -253,7 +258,9 @@ int main(int argc,char *argv[])
     //while (ws->getReadyState() != WebSocket::CLOSED) {
     while (true) {
         WebSocket::pointer wsp = &*ws; // <-- because a unique_ptr cannot be copied into a lambda
-        ws->poll(300);
+		pthread_mutex_lock(&g_s_mutex);
+        ws->poll();
+		pthread_mutex_unlock(&g_s_mutex);
 		if (ws->getReadyState() != WebSocket::CLOSED){
 			ws->dispatch([&cmd](const std::string & message) {
 				printf(">>> %s\n", message.c_str());
@@ -296,24 +303,24 @@ int main(int argc,char *argv[])
 			}
 		}
 
-		if (count++ % g_s_heart_freq == 1){
-			ws->sendPing();
-			ws->incHeartbeat();
-		}
-
-		if (ws->getHeartbeat() > 2){
-			ws->close();
-			ws->poll();
-			ws->poll();
-
-			delete ws;
-			ws = NULL;
-			printf("Heart beat error ---> new ws create! \n");
-			//printf("url: %s \n", WS_URL_CONNECT);
-			ws = WebSocket::from_url(WS_URL_CONNECT);
-			ws->send(mac_arg);
-			count = 0;
-		}
+//		if (count++ % g_s_heart_freq == 1){
+//			ws->sendPing();
+//			ws->incHeartbeat();
+//		}
+//
+//		if (ws->getHeartbeat() > 2){
+//			ws->close();
+//			ws->poll();
+//			ws->poll();
+//
+//			delete ws;
+//			ws = NULL;
+//			printf("Heart beat error ---> new ws create! \n");
+//			//printf("url: %s \n", WS_URL_CONNECT);
+//			ws = WebSocket::from_url(WS_URL_CONNECT);
+//			ws->send(mac_arg);
+//			count = 0;
+//		}
     }
     // N.B. - unique_ptr will free the WebSocket instance upon return:
     return 0;
