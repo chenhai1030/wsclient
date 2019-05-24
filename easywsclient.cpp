@@ -237,9 +237,9 @@ class _RealWebSocket : public easywsclient::WebSocket
                 break;
             }
             else {
-				lock(&mutex);
+				//lock(&mutex);
                 txbuf.erase(txbuf.begin(), txbuf.begin() + ret);
-				unlock(&mutex);
+				//unlock(&mutex);
             }
         }
         if (!txbuf.size() && readyState == CLOSING) {
@@ -462,7 +462,7 @@ class _RealWebSocket : public easywsclient::WebSocket
             }
         }
         // N.B. - txbuf will keep growing until it can be transmitted over the socket:
-		lock(&mutex);
+		//lock(&mutex);
         txbuf.insert(txbuf.end(), header.begin(), header.end());
         txbuf.insert(txbuf.end(), message_begin, message_end);
 		//printf("11 buf.size :%d \n", txbuf.size() );
@@ -472,7 +472,7 @@ class _RealWebSocket : public easywsclient::WebSocket
                 txbuf[message_offset + i] ^= masking_key[i&0x3];
             }
         }
-		unlock(&mutex);
+		//unlock(&mutex);
     }
 
     void close() {

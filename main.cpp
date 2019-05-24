@@ -261,13 +261,12 @@ int main(int argc,char *argv[])
 	}
 	printf("test -> mac: %s \n", g_mac_arg);
 
-    //while (ws->getReadyState() != WebSocket::CLOSED) {
-    while (true) {
+    while (ws->getReadyState() != WebSocket::CLOSED) {
         WebSocket::pointer wsp = &*ws; // <-- because a unique_ptr cannot be copied into a lambda
 		pthread_mutex_lock(&g_s_mutex);
         ws->poll();
 		pthread_mutex_unlock(&g_s_mutex);
-		usleep(1000*10);
+		usleep(1000*30);
 		if (ws->getReadyState() != WebSocket::CLOSED){
 			ws->dispatch([&cmd](const std::string & message) {
 				printf(">>> %s\n", message.c_str());
@@ -312,24 +311,28 @@ int main(int argc,char *argv[])
 			}
 		}
 
-//		if (count++ % g_s_heart_freq == 1){
-//			ws->sendPing();
-//			ws->incHeartbeat();
-//		}
-//
-//		if (ws->getHeartbeat() > 2){
-//			ws->close();
-//			ws->poll();
-//			ws->poll();
-//
-//			delete ws;
-//			ws = NULL;
-//			printf("Heart beat error ---> new ws create! \n");
-//			//printf("url: %s \n", WS_URL_CONNECT);
-//			ws = WebSocket::from_url(WS_URL_CONNECT);
-//			ws->send(g_mac_arg);
-//			count = 0;
-//		}
+		if (count++ % g_s_heart_freq == 1){
+			pthread_mutex_lock(&g_s_mutex);
+			ws->sendPing();
+			pthread_mutex_unlock(&g_s_mutex);
+			ws->incHeartbeat();
+		}
+
+		if (ws->getHeartbeat() > 2){
+			pthread_mutex_lock(&g_s_mutex);
+			ws->close();
+			pthread_mutex_unlock(&g_s_mutex);
+
+			delete ws;
+			ws = NULL;
+			printf("Heart beat error ---> new ws create! \n");
+			//printf("url: %s \n", WS_URL_CONNECT);
+			ws = WebSocket::from_url(WS_URL_CONNECT);
+			pthread_mutex_lock(&g_s_mutex);
+			ws->send(g_mac_arg);
+			pthread_mutex_unlock(&g_s_mutex);
+			count = 0;
+		}
     }
     // N.B. - unique_ptr will free the WebSocket instance upon return:
     return 0;
