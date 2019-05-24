@@ -321,14 +321,15 @@ int main(int argc,char *argv[])
 		if (ws->getHeartbeat() > 2){
 			pthread_mutex_lock(&g_s_mutex);
 			ws->close();
+			ws->poll();
 			pthread_mutex_unlock(&g_s_mutex);
 
+			pthread_mutex_lock(&g_s_mutex);
 			delete ws;
 			ws = NULL;
 			printf("Heart beat error ---> new ws create! \n");
 			//printf("url: %s \n", WS_URL_CONNECT);
 			ws = WebSocket::from_url(WS_URL_CONNECT);
-			pthread_mutex_lock(&g_s_mutex);
 			ws->send(g_mac_arg);
 			pthread_mutex_unlock(&g_s_mutex);
 			count = 0;
