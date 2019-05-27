@@ -193,9 +193,9 @@ class _RealWebSocket : public easywsclient::WebSocket
             FD_ZERO(&rfds);
             FD_ZERO(&wfds);
             FD_SET(sockfd, &rfds);
-			//lock(&mutex);
+			lock(&mutex);
             if (txbuf.size()) { FD_SET(sockfd, &wfds); }
-			//unlock(&mutex);
+			unlock(&mutex);
             select(sockfd + 1, &rfds, &wfds, 0, timeout > 0 ? &tv : 0);
         }
         while (true) {
@@ -223,6 +223,11 @@ class _RealWebSocket : public easywsclient::WebSocket
                 rxbuf.resize(N + ret);
             }
         }
+		if (readyState == CLOSED)
+		{
+			printf("ret cause closed! \n");
+			return;
+		}
         while (txbuf.size()) {
             int ret = ::send(sockfd, (char*)&txbuf[0], txbuf.size(), MSG_NOSIGNAL);
 			//printf("ret = %d , buf.size :%d \n",ret , txbuf.size());
@@ -237,9 +242,9 @@ class _RealWebSocket : public easywsclient::WebSocket
                 break;
             }
             else {
-				//lock(&mutex);
+				lock(&mutex);
                 txbuf.erase(txbuf.begin(), txbuf.begin() + ret);
-				//unlock(&mutex);
+				unlock(&mutex);
             }
         }
         if (!txbuf.size() && readyState == CLOSING) {
@@ -317,6 +322,7 @@ class _RealWebSocket : public easywsclient::WebSocket
                     // for now.
                     isRxBad = true;
                     fprintf(stderr, "ERROR: Frame has invalid frame length. Closing.\n");
+                    printf("ERROR: Frame has invalid frame length. Closing.\n");
                     close();
                     return;
                 }
@@ -356,7 +362,7 @@ class _RealWebSocket : public easywsclient::WebSocket
                 sendData(wsheader_type::PONG, data.size(), data.begin(), data.end());
             }
             else if (ws.opcode == wsheader_type::PONG) {
-				//printf("reciv pong!\n");
+//				printf("reciv pong!\n");
 				heartbeat = 0;
 			}
             else if (ws.opcode == wsheader_type::CLOSE) { 
@@ -462,7 +468,7 @@ class _RealWebSocket : public easywsclient::WebSocket
             }
         }
         // N.B. - txbuf will keep growing until it can be transmitted over the socket:
-		//lock(&mutex);
+		lock(&mutex);
         txbuf.insert(txbuf.end(), header.begin(), header.end());
         txbuf.insert(txbuf.end(), message_begin, message_end);
 		//printf("11 buf.size :%d \n", txbuf.size() );
@@ -472,7 +478,7 @@ class _RealWebSocket : public easywsclient::WebSocket
                 txbuf[message_offset + i] ^= masking_key[i&0x3];
             }
         }
-		//unlock(&mutex);
+		unlock(&mutex);
     }
 
     void close() {
@@ -480,9 +486,9 @@ class _RealWebSocket : public easywsclient::WebSocket
         readyState = CLOSING;
         uint8_t closeFrame[6] = {0x88, 0x80, 0x00, 0x00, 0x00, 0x00}; // last 4 bytes are a masking key
         std::vector<uint8_t> header(closeFrame, closeFrame+6);
-		//lock(&mutex);
+		lock(&mutex);
         txbuf.insert(txbuf.end(), header.begin(), header.end());
-	//	unlock(&mutex);
+		unlock(&mutex);
     }
 
 };
