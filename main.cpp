@@ -144,6 +144,7 @@ static void *fun_send_msg_process(void *)
 	while(true){
 		fp = fopen(FIFO, "rb");
 		if (fp!= NULL){
+#if 0
 		loop:
 			usleep(1000*10);	
 			while(fgets( line, sizeof(line), fp) != NULL){
@@ -165,8 +166,19 @@ static void *fun_send_msg_process(void *)
 				len += strlen(line);
 				goto loop;
 			}
+#else
+			while(fgets( line, sizeof(line), fp) != NULL){
+				pthread_mutex_lock(&g_s_mutex);
+				if (ws != NULL && ws->getReadyState() != WebSocket::CLOSED){
+					ws->send(line);
+					memset(line, 0, sizeof(line));
+				}
+				pthread_mutex_unlock(&g_s_mutex);
+				usleep(1000*10);	
+			}	
+#endif
 		}
-		usleep(1000*500);	
+		//usleep(1000*500);	
 	}
 	return NULL;
 }
@@ -267,14 +279,16 @@ int main(int argc,char *argv[])
 		pthread_mutex_lock(&g_s_mutex);
         ws->poll();
 		pthread_mutex_unlock(&g_s_mutex);
-		//usleep(1000*30);
+		usleep(1000*30);
 		if (ws->getReadyState() != WebSocket::CLOSED){
+			pthread_mutex_lock(&g_s_mutex);
 			ws->dispatch([&cmd](const std::string & message) {
 				printf(">>> %s\n", message.c_str());
 				//sprintf((char*)cmd, "%s > %s",  message.c_str(), TMP_FILE);
 				sprintf((char*)cmd, "%s",  message.c_str());
 		//        if (message == "world") { wsp->close(); }
 			});
+			pthread_mutex_unlock(&g_s_mutex);
 			if (strlen(cmd) > 0){
 				if (child_pid > 0){
 					kill(child_pid, SIGKILL);
@@ -312,28 +326,28 @@ int main(int argc,char *argv[])
 			}
 		}
 
-//		if (ws->getHeartbeat() > 3){
-//			pthread_mutex_lock(&g_s_mutex);
-//			ws->close();
-//			ws->poll();
-//
-//			delete ws;
-//			ws = NULL;
-//			printf("Heart beat error ---> new ws create! \n");
-//			//printf("url: %s \n", WS_URL_CONNECT);
-//			ws = WebSocket::from_url(WS_URL_CONNECT);
-//			assert(ws);
-//			ws->send(g_mac_arg);
-//			pthread_mutex_unlock(&g_s_mutex);
-//			count = 0;
-//		}
+		if (ws->getHeartbeat() > 2){
+			pthread_mutex_lock(&g_s_mutex);
+			ws->close();
+			ws->poll();
 
-//		if (count++ % g_s_heart_freq == 1){
-//			pthread_mutex_lock(&g_s_mutex);
-//			ws->sendPing();
-//			pthread_mutex_unlock(&g_s_mutex);
-//			ws->incHeartbeat();
-//		}
+			delete ws;
+			ws = NULL;
+			printf("Heart beat error ---> new ws create! \n");
+			//printf("url: %s \n", WS_URL_CONNECT);
+			ws = WebSocket::from_url(WS_URL_CONNECT);
+			assert(ws);
+			ws->send(g_mac_arg);
+			pthread_mutex_unlock(&g_s_mutex);
+			count = 0;
+		}
+
+		if (count++ % g_s_heart_freq == 1){
+			pthread_mutex_lock(&g_s_mutex);
+			ws->sendPing();
+			pthread_mutex_unlock(&g_s_mutex);
+			ws->incHeartbeat();
+		}
     }
     // N.B. - unique_ptr will free the WebSocket instance upon return:
     return 0;
